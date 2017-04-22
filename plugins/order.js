@@ -3,8 +3,13 @@ const pizzapi = require('dominos')
 module.exports = {
   init: (controller) => {
     controller.hears([/i want a pizza/, /i want pizza/], ['direct_message', 'direct_mention', 'ambient'], (bot, message) => {
-      bot.reply(message, 'Sup! Looking for nearby stores...')
-      pizzapi.Util.findNearbyStores('11 Times Square, New York, NY 10036', 'Delivery', (storeData) => {
+      bot.createConversation(message, doConvo)
+    })
+    function doConvo (err, convo) {
+      convo.addQuestion('What address to you want it delivered to?', (responseObj) => { convo.setVar('address', responseObj.text) }, {}, 'thread_1')
+      convo.activate()
+      convo.gotoThread('thread_1')
+      convo.setVar('lookup', pizzapi.Util.findNearbyStores(convo.vars.address, 'Delivery', (storeData) => {
         let storeList = storeData.result.Stores
         let filteredStoreList = storeList.filter((store) => {
           return store.IsOpen && store.IsOnlineCapable && store.IsOnlineNow
@@ -13,9 +18,12 @@ module.exports = {
           newString += `ID: ${store.StoreID}\r\nAddress: ${store.AddressDescription}\r\n\r\n`
           return newString
         }, '')
-        bot.reply(message, shortList)
-      })
-    })
+        console.log(shortList)
+      }))
+      convo.addMessage('Okay. Let me look that up for you.', 'thread_2', convo.vars.lookup.call)
+
+      // convo.addMessage(`I gotchu. Try: ${shortList}`, 'thread_3')
+    }
   },
   help: {
     command: 'i want pizza',
